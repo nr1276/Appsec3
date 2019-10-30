@@ -9,9 +9,39 @@ import subprocess
 from subprocess import check_output
 from flask_wtf.csrf import CSRFProtect
 from flask_wtf import FlaskForm
+from sqlalchemy import create_engine, Column, Integer, ForeignKey, String, DateTime
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import relationship, sessionmaker
+from secrets import token_hex
+import os.path
 
-#User Variable to store entries
-Users = { }
+BASE = declarative_base()
+DBFILE = "users.db"
+
+def setup_db():
+    global BASE
+    engine = create_engine(f'sqlite:///{DBFILE}')
+    BASE.metadata.bind = engine
+    if not(os.path.isfile(DBFILE)):
+        BASE.metadata.create_all(engine)
+    DBSessionMaker = sessionmaker(bind=engine)
+    return DBSessionMaker
+
+class User(BASE):
+    __tablename__ = 'users'
+    user_id = Column(Integer, primary_key=True, autoincrement=True)
+    uname = Column(String(25), nullable=False, unique=True)
+    pword = Column(String(64), nullable=False)
+    salt = Column(String(16), nullable=False)
+
+class LoginRecord(BASE):
+    __tablename__ = 'login_records'
+    record_number = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(Integer, ForeignKey('users.user_id'), nullable=False)
+    time_on = Column(DateTime, nullable=False)
+    time_off = Column(DateTime)
+    users = relationship(User)
+
 
 login_manager = flask_login.LoginManager()
 
@@ -54,8 +84,6 @@ class User(flask_login.UserMixin):
 
 @login_manager.user_loader
 def user_loader(username):
-    if username not in Users:
-        return
     user = User()
     user.id = username
     return user
@@ -63,8 +91,6 @@ def user_loader(username):
 @login_manager.request_loader
 def request_loader(request):
     username = request.form.get('uname')
-    if username not in Users:
-        return
     user = User()
     user.id = username
     #user.is_authenticated = sha256_crypt.verify(password, Users[username]['password'])
