@@ -2,7 +2,7 @@
 from flask import Flask, url_for, render_template, request, redirect, make_response
 from wtforms import Form, BooleanField, StringField, PasswordField, validators
 from wtforms.widgets import TextArea
-from passlib.hash import sha256_crypt
+from hashlib import sha256 as SHA256
 import flask_login
 from flask_login import LoginManager, login_required, login_user, logout_user, current_user
 import subprocess
@@ -27,11 +27,12 @@ def setup_db():
     DBSessionMaker = sessionmaker(bind=engine)
     return DBSessionMaker
 
-class User(BASE):
+class Users(BASE):
     __tablename__ = 'users'
     user_id = Column(Integer, primary_key=True, autoincrement=True)
     uname = Column(String(25), nullable=False, unique=True)
     pword = Column(String(64), nullable=False)
+    mfa = Column(String(25), nullable=False)
     salt = Column(String(16), nullable=False)
 
 class LoginRecord(BASE):
@@ -40,7 +41,7 @@ class LoginRecord(BASE):
     user_id = Column(Integer, ForeignKey('users.user_id'), nullable=False)
     time_on = Column(DateTime, nullable=False)
     time_off = Column(DateTime)
-    users = relationship(User)
+    users = relationship(Users)
 
 
 login_manager = flask_login.LoginManager()
@@ -106,17 +107,27 @@ def mainpage(user=None):
 @app.route('/register', methods=['GET', 'POST'])
 def register():
     form = RegistrationForm()
+    DBSessionMaker = setup_db()
+    session = DBSessionMaker()
     success = None
     if request.method ==  'POST' and form.validate():
+        hasher = SHA256()
+        pword = form.pword.data
+        hasher.update(pword.encode('utf-8'))
         uname = form.uname.data
-        pword = sha256_crypt.encrypt(form.pword.data)
+        pword = hasher.hexdigest()
+        salt = token_hex(nbytes=16)
         mfa = form.mfa.data
-        if uname in Users:
+        if uname == (session.query(Users).filter(Users.uname == uname).uname):
             form.uname.data = 'user already exists'
             success = 'failure'
+            session.close()
             return render_template('register.html', form=form, success=success)
-        Users[uname] = {'password': pword, 'mfa': mfa}
+        new_user = Users(uname=uname, pword=pword, mfa=mfa, salt=salt)
+        session.add(new_user)
         success = "success"
+        session.commit()
+        session.close()
     return render_template('register.html', form=form, success=success)
 
 @app.route('/login', methods=['GET', 'POST'])
