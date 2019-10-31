@@ -115,11 +115,11 @@ def register():
         pword = form.pword.data 
         hasher.update(pword.encode('utf-8'))
         uname = form.uname.data
-        pword = hasher.hexdigest()
         salt = token_hex(nbytes=16)
         hasher.update(salt.encode('utf-8'))
+        passwordhash = hasher.hexdigest()
         mfa = form.mfa.data
-        new_user = Users(uname=uname, pword=pword, mfa=mfa, salt=salt)
+        new_user = Users(uname=uname, pword=passwordhash, mfa=mfa, salt=salt)
         session.add(new_user)
         try:
             session.commit()
@@ -143,6 +143,9 @@ def login():
        pword = form.pword.data
        mfa = form.mfa.data
        userdetails = session.query(Users).filter(Users.uname == uname).first()
+       if (userdetails == None):
+           result = "incorrect"
+           return render_template('login.html', form=form, result=result)
        salt = userdetails.salt
        hasher = SHA256()
        hasher.update(pword.encode('utf-8'))
