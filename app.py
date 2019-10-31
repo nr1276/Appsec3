@@ -112,39 +112,46 @@ def register():
     success = None
     if request.method ==  'POST' and form.validate():
         hasher = SHA256()
-        pword = form.pword.data
+        pword = form.pword.data 
         hasher.update(pword.encode('utf-8'))
         uname = form.uname.data
         pword = hasher.hexdigest()
         salt = token_hex(nbytes=16)
+        hasher.update(salt.encode('utf-8'))
         mfa = form.mfa.data
-        if uname == (session.query(Users).filter(Users.uname == uname).uname):
+        new_user = Users(uname=uname, pword=pword, mfa=mfa, salt=salt)
+        session.add(new_user)
+        try:
+            session.commit()
+        except:
             form.uname.data = 'user already exists'
             success = 'failure'
             session.close()
             return render_template('register.html', form=form, success=success)
-        new_user = Users(uname=uname, pword=pword, mfa=mfa, salt=salt)
-        session.add(new_user)
         success = "success"
-        session.commit()
         session.close()
     return render_template('register.html', form=form, success=success)
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
-    form = UserLoginForm()
+    form = UserLoginForm() 
+    DBSessionMaker = setup_db()
+    session = DBSessionMaker()
     result = None
     if request.method == 'POST':
        uname = form.uname.data
        pword = form.pword.data
        mfa = form.mfa.data
-       if (uname not in Users):
+       userdetails = session.query(Users).filter(Users.uname == uname).first()
+       salt = userdetails.salt
+       hasher = SHA256()
+       hasher.update(pword.encode('utf-8'))
+       hasher.update(salt.encode('utf-8'))
+       passwordhash = hasher.hexdigest()
+       if (passwordhash != userdetails.pword):
            result = "incorrect"
            return render_template('login.html', form=form, result=result)
-       if (not sha256_crypt.verify(pword, Users[uname]['password'])):
-           result = "incorrect"
-           return render_template('login.html', form=form, result=result)
-       if (mfa != Users[uname]['mfa']):
+       if (mfa != userdetails.mfa):
            result = "Two-factor failure"
            return render_template('login.html', form=form, result=result) 
        user = User()
