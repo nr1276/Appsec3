@@ -13,6 +13,7 @@ from sqlalchemy import create_engine, Column, Integer, ForeignKey, String, DateT
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship, sessionmaker
 from secrets import token_hex
+from datetime import datetime
 import os.path
 
 BASE = declarative_base()
@@ -35,6 +36,7 @@ class Users(BASE):
     mfa = Column(String(25), nullable=False)
     salt = Column(String(16), nullable=False)
 
+
 class LoginRecord(BASE):
     __tablename__ = 'login_records'
     record_number = Column(Integer, primary_key=True, autoincrement=True)
@@ -43,6 +45,14 @@ class LoginRecord(BASE):
     time_off = Column(DateTime)
     users = relationship(Users)
 
+
+class RecordHistory(BASE):
+    __tablename__ = 'record_history'
+    record_number = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(Integer, ForeignKey('users.user_id'), nullable=False)
+    query_text = Column(String(256), nullable=False)
+    query_result = Column(String(256))
+    users = relationship(Users)
 
 login_manager = flask_login.LoginManager()
 
@@ -153,29 +163,49 @@ def login():
        passwordhash = hasher.hexdigest()
        if (passwordhash != userdetails.pword):
            result = "incorrect"
+           session.close()
            return render_template('login.html', form=form, result=result)
        if (mfa != userdetails.mfa):
            result = "Two-factor failure"
+           session.close()
            return render_template('login.html', form=form, result=result) 
        user = User()
        user.id = uname
        flask_login.login_user(user)
+       loginrec = LoginRecord(user_id = uname, time_on = datetime.now()) 
+       session.commit()
+       session.close()
        result = "success"
     return render_template('login.html', form=form, result=result)
+
            
 @app.route('/spell_check', methods=['GET', 'POST'])
 @login_required
-def spell_check():
+def spell_check():    
     form = SpellCheckForm()
     textout = None
     misspelled = None
     if request.method == 'POST':
+        DBSessionMaker = setup_db()
+        session = DBSessionMaker()
         inputtext = form.inputtext.data
         textout = inputtext
         with open("words.txt", "w") as fo:
             fo.write(inputtext)      
         output = (check_output(["./a.out", "words.txt", "wordlist.txt"], universal_newlines=True))
         misspelled = output.replace("\n", ", ").strip().strip(',')
+        user = flask_login.current_user.id
+        historyrec = RecordHistory(user_id = user, query_text = inputtext, query_result = misspelled)
+        session.commit()
+        session.close()
     response = make_response(render_template('spell_check.html', form=form, textout=textout, misspelled=misspelled))
     response.headers['Content-Security-Policy'] = "default-src 'self'"
     return response
+
+
+@app.route("/logout")
+@login_required
+def logout():
+    logout_user()
+    return redirect('/login')
+
