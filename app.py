@@ -145,10 +145,10 @@ def register():
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     form = UserLoginForm() 
-    DBSessionMaker = setup_db()
-    session = DBSessionMaker()
     result = None
     if request.method == 'POST':
+       DBSessionMaker = setup_db()
+       session = DBSessionMaker()
        uname = form.uname.data
        pword = form.pword.data
        mfa = form.mfa.data
@@ -173,6 +173,7 @@ def login():
        user.id = uname
        flask_login.login_user(user)
        loginrec = LoginRecord(user_id = uname, time_on = datetime.now()) 
+       session.add(loginrec)
        session.commit()
        session.close()
        result = "success"
@@ -196,6 +197,7 @@ def spell_check():
         misspelled = output.replace("\n", ", ").strip().strip(',')
         user = flask_login.current_user.id
         historyrec = RecordHistory(user_id = user, query_text = inputtext, query_result = misspelled)
+        session.add(historyrec)
         session.commit()
         session.close()
     response = make_response(render_template('spell_check.html', form=form, textout=textout, misspelled=misspelled))
@@ -206,6 +208,12 @@ def spell_check():
 @app.route("/logout")
 @login_required
 def logout():
+    user = flask_login.current_user.id
     logout_user()
+    DBSessionMaker = setup_db()
+    session = DBSessionMaker()
+    loginrec = session.query(LoginRecord).filter(LoginRecord.user_id == user).last()
+    loginrec.time_off = datetime.now()
+    session.update(loginrec)
     return redirect('/login')
 
