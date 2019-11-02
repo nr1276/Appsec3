@@ -212,7 +212,7 @@ def logout():
     logout_user()
     DBSessionMaker = setup_db()
     session = DBSessionMaker()
-    loginrec = session.query(LoginRecord).filter(LoginRecord.user_id == user).last()
+    loginrec = session.query(LoginRecord).filter(LoginRecord.user_id == user).order_by(LoginRecord.time_on.desc()).first()
     loginrec.time_off = datetime.now()
     session.update(loginrec)
     return redirect('/login')
