@@ -214,6 +214,7 @@ def logout():
     session = DBSessionMaker()
     loginrec = session.query(LoginRecord).filter(LoginRecord.user_id == user).order_by(LoginRecord.time_on.desc()).first()
     loginrec.time_off = datetime.now()
-    session.update(loginrec)
+    session.commit()
+    session.close()
     return redirect('/login')
 
