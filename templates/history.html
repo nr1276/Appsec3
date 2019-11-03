@@ -1,0 +1,19 @@
+
+<html>
+<body>
+	
+		<h1>History</h1>
+		<br>
+		{% from "_formhelpers.html" import render_field %}
+		<form>
+		{{ form.hidden_tag() }}		
+			<p id="numqueries">{{ numqueries }}</p>
+			<br>
+			{% for row in queries %}
+			<p id="query#">{{ row.record_number}}</p>
+			{% endfor %}
+		</form>
+	
+</body>
+</html>
+

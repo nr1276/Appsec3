@@ -1,6 +1,7 @@
 
 from flask import Flask, url_for, render_template, request, redirect, make_response
 from wtforms import Form, BooleanField, StringField, PasswordField, validators
+from wtforms.ext.sqlalchemy.fields import QuerySelectField
 from wtforms.widgets import TextArea
 from hashlib import sha256 as SHA256
 import flask_login
@@ -9,7 +10,7 @@ import subprocess
 from subprocess import check_output
 from flask_wtf.csrf import CSRFProtect
 from flask_wtf import FlaskForm
-from sqlalchemy import create_engine, Column, Integer, ForeignKey, String, DateTime
+from sqlalchemy import create_engine, Column, Integer, ForeignKey, String, DateTime 
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship, sessionmaker
 from secrets import token_hex
@@ -57,6 +58,7 @@ class RecordHistory(BASE):
 login_manager = flask_login.LoginManager()
 
 
+# Flask Forms user for page rendering
 class RegistrationForm(FlaskForm):
     uname = StringField('Username', [validators.Length(min=4, max=25)])
     pword = PasswordField('New Password', [
@@ -76,6 +78,14 @@ class SpellCheckForm(FlaskForm):
     inputtext = StringField(u'inputtext', widget=TextArea())
     textout = StringField(u'textout', widget=TextArea())
     misspelled = StringField(u'misspelled', widget=TextArea())
+
+
+#def get_record_numbers():
+#    return RecordHistory.query()
+#
+class HistoryForm(FlaskForm):
+    pass
+#    querynum = QuerySelectField('query#', query_factory=get_record_numbers, get_label='record_number')
 
 
 app = Flask(__name__)
@@ -113,7 +123,7 @@ def mainpage(user=None):
     user = user
     return render_template('index.html', user=user)
 
-
+#Register Page
 @app.route('/register', methods=['GET', 'POST'])
 def register():
     form = RegistrationForm()
@@ -142,6 +152,7 @@ def register():
         session.close()
     return render_template('register.html', form=form, success=success)
 
+#Login Page
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     form = UserLoginForm() 
@@ -179,7 +190,7 @@ def login():
        result = "success"
     return render_template('login.html', form=form, result=result)
 
-           
+#Spell Check Page
 @app.route('/spell_check', methods=['GET', 'POST'])
 @login_required
 def spell_check():    
@@ -204,7 +215,7 @@ def spell_check():
     response.headers['Content-Security-Policy'] = "default-src 'self'"
     return response
 
-
+# Logout Page
 @app.route("/logout")
 @login_required
 def logout():
@@ -217,4 +228,20 @@ def logout():
     session.commit()
     session.close()
     return redirect('/login')
+
+# Hisotry Record Page
+@app.route('/history', methods=['GET'])
+@login_required
+def history():
+    form = HistoryForm()
+    user = flask_login.current_user.id
+    DBSessionMaker = setup_db()
+    session = DBSessionMaker()
+    queries = session.query(RecordHistory).filter(RecordHistory.user_id == user)
+    numqueries = queries.count()
+    response = make_response(render_template('history.html', form=form, numqueries=numqueries, queries=queries))
+    response.headers['Content-Security-Policy'] = "default-src 'self'"
+    session.close()
+    return response
+
 
