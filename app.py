@@ -235,7 +235,6 @@ def spell_check():
 
 # Logout Page
 @app.route("/logout")
-@login_required
 def logout():
     user = flask_login.current_user.id
     logout_user()
