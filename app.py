@@ -292,7 +292,9 @@ def login_history():
     queries = None
     form = LoginHistoryForm()
     user = flask_login.current_user.id
-    if (request.method == 'POST') and (user == "admin"):
+    if (user != "admin"):
+        return {"message": "not authorized"}, 401
+    if (request.method == 'POST'):
         queryuser = form.userid.data
         DBSessionMaker = setup_db()
         session = DBSessionMaker()
