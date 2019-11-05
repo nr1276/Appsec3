@@ -108,7 +108,7 @@ class LoginHistoryForm(FlaskForm):
 app = Flask(__name__)
 app.config['SESSION_TYPE'] = 'memcached'
 app.config['SECRET_KEY'] = 'super secret key'
-app.config['WTF_CSRF_ENABLED'] = False
+#app.config['WTF_CSRF_ENABLED'] = False
 
 #Login Manager
 login_manager.init_app(app)
