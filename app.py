@@ -57,7 +57,7 @@ class Users(BASE):
 class LoginRecord(BASE):
     __tablename__ = 'login_records'
     record_number = Column(Integer, primary_key=True, autoincrement=True)
-    user_id = Column(Integer, ForeignKey('users.user_id'), nullable=False)
+    user_id = Column(Integer, ForeignKey('users.username'), nullable=False)
     time_on = Column(DateTime, nullable=False)
     time_off = Column(DateTime)
     users = relationship(Users)
@@ -66,7 +66,7 @@ class LoginRecord(BASE):
 class RecordHistory(BASE):
     __tablename__ = 'record_history'
     record_number = Column(Integer, primary_key=True, autoincrement=True)
-    user_id = Column(Integer, ForeignKey('users.user_id'), nullable=False)
+    user_id = Column(Integer, ForeignKey('users.username'), nullable=False)
     query_text = Column(String(256), nullable=False)
     query_result = Column(String(256))
     users = relationship(Users)
