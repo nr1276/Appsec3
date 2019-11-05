@@ -26,7 +26,23 @@ def setup_db():
     BASE.metadata.bind = engine
     if not(os.path.isfile(DBFILE)):
         BASE.metadata.create_all(engine)
-    DBSessionMaker = sessionmaker(bind=engine)
+        DBSessionMaker = sessionmaker(bind=engine)
+        session = DBSessionMaker()
+        #ADD ADMINISTRATOR
+        hasher = SHA256()
+        pword = "Administrator@1" 
+        hasher.update(pword.encode('utf-8'))
+        uname = "admin"
+        salt = token_hex(nbytes=16)
+        hasher.update(salt.encode('utf-8'))
+        passwordhash = hasher.hexdigest()
+        mfa = "12345678910"
+        new_user = Users(uname=uname, pword=passwordhash, mfa=mfa, salt=salt)
+        session.add(new_user)
+        session.commit()
+        session.close()
+    else:
+        DBSessionMaker = sessionmaker(bind=engine)
     return DBSessionMaker
 
 class Users(BASE):
@@ -84,9 +100,10 @@ class SpellCheckForm(FlaskForm):
 #    return RecordHistory.query()
 #
 class HistoryForm(FlaskForm):
-    pass
-#    querynum = QuerySelectField('query#', query_factory=get_record_numbers, get_label='record_number')
+    userquery = StringField('userquery')
 
+class LoginHistoryForm(FlaskForm):
+    userid = StringField('userid')
 
 app = Flask(__name__)
 app.config['SESSION_TYPE'] = 'memcached'
@@ -142,6 +159,7 @@ def register():
         new_user = Users(uname=uname, pword=passwordhash, mfa=mfa, salt=salt)
         session.add(new_user)
         try:
+        
             session.commit()
         except:
             form.uname.data = 'user already exists'
@@ -229,19 +247,58 @@ def logout():
     session.close()
     return redirect('/login')
 
+
 # Hisotry Record Page
-@app.route('/history', methods=['GET'])
+@app.route('/history', methods=['GET', 'POST'])
 @login_required
 def history():
     form = HistoryForm()
     user = flask_login.current_user.id
+    if (request.method == 'POST'):
+        if user == 'admin':
+            user = form.userquery.data
     DBSessionMaker = setup_db()
     session = DBSessionMaker()
     queries = session.query(RecordHistory).filter(RecordHistory.user_id == user)
     numqueries = queries.count()
-    response = make_response(render_template('history.html', form=form, numqueries=numqueries, queries=queries))
+    response = make_response(render_template('history.html', form=form, numqueries=numqueries, user = user, queries=queries))
     response.headers['Content-Security-Policy'] = "default-src 'self'"
     session.close()
     return response
 
+
+# Hisotry Record Page
+@app.route('/history/query<int:queryid>')
+@login_required
+def history_query(queryid):
+    form = HistoryForm()
+    user = flask_login.current_user.id
+    DBSessionMaker = setup_db()
+    session = DBSessionMaker()
+    queries = session.query(RecordHistory).filter(RecordHistory.record_number == queryid).first()
+    if (queries.user_id != user and user != "admin"):
+        queries = None
+    response = make_response(render_template('query.html', form=form, queries=queries))
+    response.headers['Content-Security-Policy'] = "default-src 'self'"
+    session.close()
+    return response
+
+
+
+# Hisotry Record Page
+@app.route('/login_history', methods=['GET', 'POST'])
+@login_required
+def login_history():
+    queries = None
+    form = LoginHistoryForm()
+    user = flask_login.current_user.id
+    if (request.method == 'POST') and (user == "admin"):
+        queryuser = form.userid.data
+        DBSessionMaker = setup_db()
+        session = DBSessionMaker()
+        queries = session.query(LoginRecord).filter(LoginRecord.user_id == queryuser)
+        session.close()
+    response = make_response(render_template('login_history.html', form=form, user = user, queries=queries))
+    response.headers['Content-Security-Policy'] = "default-src 'self'"
+    return response
 
