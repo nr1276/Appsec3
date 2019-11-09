@@ -298,7 +298,8 @@ def login_history():
         queryuser = form.userid.data
         DBSessionMaker = setup_db()
         session = DBSessionMaker()
-        queries = session.query(LoginRecord).filter(LoginRecord.user_id == queryuser)
+        username = session.query(Users).filter(Users.user_id == queryuser).first()
+        queries = session.query(LoginRecord).filter(LoginRecord.user_id == username.uname)
         session.close()
     response = make_response(render_template('login_history.html', form=form, user = user, queries=queries))
     response.headers['Content-Security-Policy'] = "default-src 'self'"
