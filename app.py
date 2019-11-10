@@ -235,7 +235,6 @@ def spell_check():
 
 # Logout Page
 @app.route("/logout")
-@login_required
 def logout():
     user = flask_login.current_user.id
     logout_user()
@@ -250,7 +249,6 @@ def logout():
 
 # Hisotry Record Page
 @app.route('/history', methods=['GET', 'POST'])
-@login_required
 def history():
     form = HistoryForm()
     user = flask_login.current_user.id
@@ -269,7 +267,6 @@ def history():
 
 # Hisotry Record Page
 @app.route('/history/query<int:queryid>')
-@login_required
 def history_query(queryid):
     form = HistoryForm()
     user = flask_login.current_user.id
@@ -287,7 +284,6 @@ def history_query(queryid):
 
 # Hisotry Record Page
 @app.route('/login_history', methods=['GET', 'POST'])
-@login_required
 def login_history():
     queries = None
     form = LoginHistoryForm()
