@@ -36,7 +36,7 @@ def setup_db():
         salt = token_hex(nbytes=16)
         hasher.update(salt.encode('utf-8'))
         passwordhash = hasher.hexdigest()
-        mfa = "12345678910"
+        mfa = "12345678901"
         new_user = Users(uname=uname, pword=passwordhash, mfa=mfa, salt=salt)
         session.add(new_user)
         session.commit()
